@@ -234,11 +234,11 @@ int main()
                 << '|' << right << setw(request_label_width) << "Previous Aid" << " | " << left << setw(value_width) << (previous_aid ? "Received" : "Not Received") << '|' << endl
                 << '+' << setfill('-') << setw(request_label_width + 3 + value_width) << "" << '+' << setfill(' ') << endl;
 
-            cout << "\n----- Calculated Need Score -----\n"
+            cout << "\n------ Calculated Need Score -------\n"
                 << "Need Score: " << fixed << setprecision(3) << need_score << endl;
 
             // Decides aid distribution
-            cout << "\n-------- Selected Action --------\n";
+            cout << "\n--------- Selected Action ----------\n";
 
             if ((need_score > 75) && (need_score <= 100))       //This case prioritizes Full Relief.
             {
@@ -329,14 +329,14 @@ int main()
             }
 
             // Table for supplies delivered
-            cout << "\n------ Supply Distribution ------\n"
+            cout << "\n-------- Supply Distribution --------\n"
                 << '+' << setfill('-') << setw(supply_label_width + 3 + value_width) << "" << '+' << setfill(' ') << endl
                 << '|' << right << setw(supply_label_width) << "Trucks" << " | " << left << setw(value_width) << provided_trucks << '|' << endl
                 << '|' << right << setw(supply_label_width) << "Supply Packs" << " | " << left << setw(value_width) << provided_supply_packs << '|' << endl
                 << '+' << setfill('-') << setw(supply_label_width + 3 + value_width) << "" << '+' << setfill(' ') << endl;
 
             // Table for supplies remaining
-            cout << "\n------- Remaining Supplies ------\n"
+            cout << "\n-------- Remaining Supplies --------\n"
                 << '+' << setfill('-') << setw(supply_label_width + 3 + value_width) << "" << '+' << setfill(' ') << endl
                 << '|' << right << setw(supply_label_width) << "Trucks" << " | " << left << setw(value_width) << trucks << '|' << endl
                 << '|' << right << setw(supply_label_width) << "Supply Packs" << " | " << left << setw(value_width) << supply_packs << '|' << endl
