@@ -30,7 +30,7 @@ The program collects the following information for each request:
 
 Damage levels are internally represented as 3 for High, 2 for Medium, and 1 for Low. The yes/no inputs are stored as Boolean values. The program validates the damage-level choice, the number of affected families, and the yes/no responses before proceeding with the calculation.
 
-## 4. Need Score Calculation
+## 4. Need Score Calculation:
 
 The algorithm used to calculate need score gives a **priority score from 0 to 100** for emergency requests.
 The algorithm consists of four main stages:
@@ -301,6 +301,10 @@ The program starts with the following inventory:
 For every request that receives assistance, the program subtracts the allocated trucks and supply packs from the available inventory.
 
 Requests that are deferred do not consume resources. This allows subsequent requests to be evaluated using the updated inventory. The system therefore avoids allocating more resources than are available for an individual action.
+
+## 7. Flowchart: 
+
+![Alt text](flowchart.png)
 
 ## 8. Testing and Results
 
