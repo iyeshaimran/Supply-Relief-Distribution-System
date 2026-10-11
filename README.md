@@ -102,7 +102,7 @@ Each factor contributes differently to reflect its intended importance.
 | Factor | Scoring rule | Maximum contribution |
 |---|---|---:|
 | Damage level | $25 \times \ D^{1.5}$ | 25 points |
-| Families affected | $20 \ times \F^2$) | 20 points |
+| Families affected | $20 \times \ F^2$) | 20 points |
 | Road access | 15 if inaccessible; otherwise 0 | 15 points |
 | Flood warning | 10 if present; otherwise 0 | 10 points |
 | Medical need | 20 if present; otherwise 0 | 20 points |
@@ -385,11 +385,11 @@ When the user selects the exit option, the program displays a final summary cont
 | ------------ | ----------------------------------------------- |
 | Ayesha Imran   | Need-score formula and calculation          |
 | Lubna Hanif  | Decision rules and resource allocation        |
-| [Ayesha Imran, Lubna Hanif   | Testing, documentation, and GitHub management |
+| Ayesha Imran, Lubna Hanif   | Testing, documentation, and GitHub management |
 
 ## 11. GitHub Repository:
 
-**Repository link:** 
+**Repository link:** https://github.com/iyeshaimran/Supply-Relief-Distribution-System
 
 ## 12. AI Usage Declaration:
 For need score calculation, we designed the raw score formula ourselves but used AI tools to normalise and transform a raw total. It suggested the equation $score = 100 \times \frac{1 - e^{-S/K}}{1 - e^{-S_{\max}/K}}$ , we learned how the equation works, graphed it and, choose the constants according to the needs of the program.
