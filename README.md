@@ -30,6 +30,236 @@ The program collects the following information for each request:
 
 Damage levels are internally represented as 3 for High, 2 for Medium, and 1 for Low. The yes/no inputs are stored as Boolean values. The program validates the damage-level choice, the number of affected families, and the yes/no responses before proceeding with the calculation.
 
+## 4. Need Score Calculation
+
+The algorithm used to calculate need score gives a **priority score from 0 to 100** for emergency requests.
+The algorithm consists of four main stages:
+
+1) **Input normalisation** : scaling of numerical inputs to the range (0-1).
+2) **Base score calculation** : assigning weighted points to each factor.
+3) **Risk condition bonuses** : increasing the score when multiple risk factors occur together.
+4) **Exponential transformation** : converting the raw score into a normalized priority score.
+
+The objective is to prioritize requests based on the severity of damage, the scale of the affected population, urgency, and unmet needs.
+
+### Input Normalisation
+
+Before calculating the base score, the damage level and number of families affected are normalized.
+
+#### Families affected
+
+```cpp
+float normalised_families_affected =
+    (families_affected - 10) / 190.0;
+```
+
+This transforms the number of affected families using a range of 10 to 200.
+For example,
+| Families Affected | Normalised value |
+|---:|---:|
+| 1 — 10 | 0 |
+| 2 — 105 | 0.5 |
+| 3 — 200 | 1 |
+
+The normalised value is subsequently squared, allowing larger affected populations to contribute disproportionately more to the score. Families affected measure the scale of humanitarian impact of an emergency. It denotes humanitarian need rather than just severity for one household. A weightage of 20% is given to families affected.
+
+
+This interpretation is based on the valid input range 10–200.
+
+#### Damage level
+
+```cpp
+float normalised_damage_level =
+    (damage_level - 1) / 2.0;
+```
+
+This transforms a damage rating of 1–3 into a range of 0–1.
+
+| Damage level | Normalized value |
+|---:|---:|
+| 1 — Low | 0 |
+| 2 — Moderate | 0.5 |
+| 3 — Severe | 1 |
+
+The normalised damage value is raised to the power of 1.5, increasing the relative contribution of more severe damage. Damage level includes damage to homes, buildings, essential facilities, or elevation level, location exposure in case of natural disaster such as floods. In case of an emergency, physical vulnerability is of significant importance. This is highlighted by giving 25% weightage to damage level. 
+
+### Base Score Calculation
+
+The base score is calculated as follows:
+
+```cpp
+float base_score =
+    25 * pow(normalised_damage_level, 1.5)
+    + 20 * pow(normalised_families_affected, 2)
+    + (roads_access ? 0 : 15)
+    + (flood_warning ? 10 : 0)
+    + (medical_need ? 20 : 0)
+    + (previous_aid ? -5 : 10);
+```
+
+Each factor contributes differently to reflect its intended importance.
+
+| Factor | Scoring rule | Maximum contribution |
+|---|---|---:|
+| Damage level | $25 \times \D^{1.5}$ | 25 points |
+| Families affected | $20 \times \F^2$) | 20 points |
+| Road access | 15 if inaccessible; otherwise 0 | 15 points |
+| Flood warning | 10 if present; otherwise 0 | 10 points |
+| Medical need | 20 if present; otherwise 0 | 20 points |
+| Previous aid | +10 if no aid; −5 if aid received | 10 points |
+
+Here, \(D\) represents normalized damage and \(F\) represents normalized families affected.
+
+#### Use of exponents
+
+The exponents introduce nonlinear scoring:
+
+- **Damage exponent of 1.5:** gives greater relative emphasis to severe damage than a simple linear scale.
+- **Families exponent of 2:** emphasizes larger affected populations more strongly than smaller ones.
+
+#### Road accessibility
+
+```cpp
+(roads_access ? 0 : 15)
+```
+A community that cannot be reached is particularly difficult to assist. Relatively small disruptions to critical roads can cause disproportionately large loss in healthcare accessibility and delayed relied delivery. So 15 points are added in case of damaged or blocked roads.
+
+#### Flood warning
+
+```cpp
+(flood_warning ? 10 : 0)
+```
+
+An active flood warning adds 10 points to account for an ongoing or imminent threat since the situation has the potential to deteriorate rapidly.
+
+#### Medical need
+
+```cpp
+(medical_need ? 20 : 0)
+```
+
+Requests involving medical needs receive 20 additional points because untreated medical conditions can become life-threatening.
+
+#### Previous aid
+
+```cpp
+(previous_aid ? -5 : 10)
+```
+
+This factor accounts for unmet needs:
+
+- No previous aid: +10 points.
+- Previous aid received: −5 points.
+
+The assumption is that requests without previous assistance may have greater unmet needs. Receiving aid does not necessarily mean that a community's needs have been met, so this factor should be interpreted alongside the other indicators.
+
+### Risk Condition Bonuses
+
+In addition to the base score, the algorithm identifies combinations of risk factors.
+
+#### Two condition bonuses
+
+```cpp
+int two_conditions_bonus =
+    ((medical_need && flood_warning) ? 10 : 0)
+    + ((medical_need && !roads_access) ? 10 : 0)
+    + ((flood_warning && !previous_aid) ? 5 : 0)
+    + ((!roads_access && !previous_aid) ? 5 : 0);
+```
+
+| Combined conditions | Bonus |
+|---|---:|
+| Medical need and flood warning | +10 |
+| Medical need and inaccessible roads | +10 |
+| Flood warning and no previous aid | +5 |
+| Inaccessible roads and no previous aid | +5 |
+
+These bonuses represent situations in which multiple challenges occur simultaneously.
+For example, a community with medical needs and inaccessible roads may face both urgent health risks and barriers to receiving treatment.
+
+Each condition is evaluated independently, so multiple bonuses can accumulate with the total maximum bonus of +30.
+
+#### Three condition bonuses
+
+```cpp
+int three_conditions_bonus =
+    ((damage_level == 3 && medical_need && flood_warning) ? 10 : 0)
+    + (((families_affected >= 100) && medical_need
+        && !roads_access) ? 10 : 0);
+```
+
+Two additional combinations receive 10 points each:
+
+- Severe damage, medical need, and an active flood warning.
+- At least 100 affected families, medical need, and inaccessible roads.
+
+These bonuses give additional emphasis to combinations of large-scale impact and urgent needs. These additional combinations can also accumulate giving a maximum bonus of +20.
+
+### Total Raw Score
+
+The raw score combines the base score and both bonus categories:
+
+```cpp
+float total_score =
+    base_score
+    + two_conditions_bonus
+    + three_conditions_bonus;
+```
+
+### Exponential Transformation
+
+The final score is calculated using a normalized exponential saturation function:
+
+```cpp
+need_score = 100 *
+    ((1 - exp(-total_score / k))
+    / (1 - exp(-max_score / k)));
+```
+
+The mathematical expression is:
+
+$$
+score = 100 \times \frac{1 - e^{-S/K}}{1 - e^{-S_{\max}/K}}
+$$
+
+Where:
+
+- score = final priority score
+- S = total raw score
+- K = saturation constant.
+- $S_{\max}$ = maximum raw score.
+
+For the current configuration:
+
+K=60, $S_{\max}$=150
+
+The saturation constant controls how early the score saturate as the raw score increases.
+Max raw score is calculated from the sum of maximum possible raw score and maximum possible bonuses. 
+
+#### Use of exponential saturation
+
+The exponential transformation converts the raw score into a 0-100 score with diminishing returns. When a request has few risk factors, each extra factor raises the score a lot, but once the need is already severe, further factors add progressively less, because a request that is already an emergency doesn’t become more urgent with one more factor.A linear transformation would make the final score directly proportional to the raw score. Exponential saturation instead produces a nonlinear relationship:
+
+- Low raw (0-50) scores produce relatively low priority scores, that increase rapidly for any added factor, due to almost linear nature of equation for **low raw scores**.
+- High scores (100-150) approach the maximum value (100) more gradually.
+
+The denominator normalises the result in the range 0-1, while multiplication with 100 gives a value in the range 0-100.
+
+#### Reason for choosing K = 60
+With K = 30, the scores are almost flat after 90 raw points, so we can’t tell damage level from medium to high. With K = 120, the gaps barely shrink, so there are no diminishing returns. With K= 60, the first 30 points give 43 of the 100, and each later step still adds a visible gap, down to about 6 at the top.
+
+### Negative score protection
+
+```cpp
+need_score = (need_score < 0) ? 0 : need_score;
+```
+
+This conditional ensures that negative transformed scores are replaced with zero, so all outputs must remain within the 0–100 range.
+
+### Limitations
+
+The weights, exponents, bonuses, and saturation constant are proposed algorithm parameters that have been chosen based on severity. The numeric values are our own estimates and are not derived from real data.
+
 ## 5. Decision and Action Rules:
 The system uses the calculated need score to determine which action should be prioritized.
 
@@ -85,10 +315,8 @@ The following table summarizes the information provided for the five relief requ
 | Riverside Village  | High         |               150 | Damaged      | Yes           | Yes          | Yes                   |
 | Hilltop Settlement | Medium       |                60 | Open         | No            | No           | No                    |
 | Lakeside Camp      | High         |                90 | Open         | Yes           | Yes          | Yes                   |
-| Market Town        | Low          |               200 | Open         | No            | No           | No*                   |
+| Market Town        | Low          |               200 | Open         | No            | No           | No                   |
 | Bridge Colony      | High         |                40 | Damaged      | Yes           | Yes          | Yes                   |
-
-*Note: The Previous Aid Received value for Market Town is assumed to be No. Confirm this value against the original assignment if necessary.*
 
 ### 8.2 Test Set 1: Sufficient Initial Resources
 
